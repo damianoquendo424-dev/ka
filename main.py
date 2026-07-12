@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, session, redirect, url_for
+from flask import Flask, request, jsonify, session, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
@@ -51,13 +51,15 @@ def login():
             session['admin_id'] = admin.id
             return jsonify({'success': True}), 200
         return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
-    return render_template('login.html')
+
+    return '''<!DOCTYPE html><html><head><title>KeyAuth</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);font-family:Segoe UI,Tahoma;display:flex;justify-content:center;align-items:center;min-height:100vh;color:#fff}.container{width:100%;max-width:400px;padding:20px}.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:40px;backdrop-filter:blur(10px)}.logo{text-align:center;margin-bottom:30px}.logo h1{font-size:2.5em;font-weight:bold;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:10px}.logo p{color:#aaa;font-size:0.9em}.form-group{margin-bottom:20px}label{display:block;margin-bottom:8px;font-size:0.9em;color:#bbb;font-weight:500}input[type="text"],input[type="password"]{width:100%;padding:12px 15px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#fff;font-size:1em;transition:all 0.3s ease}.btn{width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:5px;color:#fff;font-size:1em;font-weight:600;cursor:pointer;transition:all 0.3s ease;margin-top:10px}.btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(102,126,234,0.4)}.message{padding:12px;border-radius:5px;margin-bottom:20px;text-align:center;font-size:0.9em;display:none}.message.success{background:rgba(76,175,80,0.2);color:#4caf50}.message.error{background:rgba(244,67,54,0.2);color:#f44336}</style></head><body><div class="container"><div class="card"><div class="logo"><h1>🔑 KeyAuth</h1><p>License Key Management</p></div><div class="message" id="message"></div><form id="loginForm"><div class="form-group"><label>Username</label><input type="text" id="username" value="deu" required></div><div class="form-group"><label>Password</label><input type="password" id="password" value="deu" required></div><button type="submit" class="btn">Login</button></form><div style="text-align:center;margin-top:20px;font-size:0.9em;color:#aaa">Default: deu / deu</div></div></div><script>document.getElementById("loginForm").addEventListener("submit",async(e)=>{e.preventDefault();const u=document.getElementById("username").value,p=document.getElementById("password").value;try{const r=await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:u,password:p})}),d=await r.json();d.success?(document.getElementById("message").textContent="✓ Logged in!",document.getElementById("message").className="message success",document.getElementById("message").style.display="block",setTimeout(()=>window.location.href="/dashboard",1500)):(document.getElementById("message").textContent="✗ "+d.message,document.getElementById("message").className="message error",document.getElementById("message").style.display="block")}catch(e){document.getElementById("message").textContent="✗ Error",document.getElementById("message").className="message error",document.getElementById("message").style.display="block"}});</script></body></html>'''
 
 @app.route('/dashboard')
 def dashboard():
     if 'admin_id' not in session:
         return redirect(url_for('login'))
-    return render_template('dashboard.html')
+
+    return '''<!DOCTYPE html><html><head><title>KeyAuth Dashboard</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);font-family:Segoe UI;color:#fff;min-height:100vh;padding:20px}.navbar{background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.1);padding:20px 40px;border-radius:10px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center}.navbar h1{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:1.8em}.navbar a{color:#667eea;text-decoration:none;cursor:pointer}.container{max-width:1200px;margin:0 auto}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:20px;margin-bottom:40px}.stat-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:20px;text-align:center}.stat-card h3{color:#aaa;font-size:0.9em;margin-bottom:10px}.stat-card .number{font-size:2.5em;font-weight:bold;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}.section{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:30px;margin-bottom:30px}.section h2{margin-bottom:20px;font-size:1.5em}.form-group{margin-bottom:15px}label{display:block;margin-bottom:5px;color:#aaa}.form-group input{width:100%;padding:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#fff;margin-bottom:10px}.btn{padding:10px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:5px;color:#fff;cursor:pointer;font-weight:600;transition:all 0.3s ease}.btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(102,126,234,0.4)}.key-output{background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:5px;padding:15px;margin-top:15px;word-break:break-all;font-family:monospace;font-size:0.9em;max-height:300px;overflow-y:auto;display:none}.message{padding:12px;border-radius:5px;margin-bottom:20px;display:none}.message.success{background:rgba(76,175,80,0.2);color:#4caf50}.message.error{background:rgba(244,67,54,0.2);color:#f44336}</style></head><body><div class="navbar"><h1>🔑 KeyAuth Dashboard</h1><a onclick="window.location.href=\\'/logout\\'">Logout</a></div><div class="container"><div class="stats"><div class="stat-card"><h3>Total Keys</h3><div class="number" id="totalKeys">0</div></div><div class="stat-card"><h3>Used</h3><div class="number" id="usedKeys">0</div></div><div class="stat-card"><h3>Available</h3><div class="number" id="availableKeys">0</div></div><div class="stat-card"><h3>Banned</h3><div class="number" id="bannedKeys">0</div></div></div><div class="section"><h2>Generate Keys</h2><div class="message" id="message"></div><div class="form-group"><label>Days Valid</label><input type="number" id="daysValid" value="30" min="1" max="365"></div><div class="form-group"><label>Max Uses</label><input type="number" id="maxUses" value="1" min="1" max="10"></div><div class="form-group"><label>Quantity</label><input type="number" id="quantity" value="1" min="1" max="100"></div><button class="btn" onclick="generateKeys()">Generate</button><button class="btn" onclick="copyAllKeys()" style="margin-left:10px">Copy All</button><div class="key-output" id="keyOutput"></div></div></div><script>async function generateKeys(){const days=document.getElementById("daysValid").value,uses=document.getElementById("maxUses").value,qty=document.getElementById("quantity").value;try{const r=await fetch("/api/generate-key",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({days_valid:days,max_uses:uses,quantity:qty})}),d=await r.json();if(d.success){document.getElementById("message").textContent="✓ Keys generated!",document.getElementById("message").className="message success",document.getElementById("message").style.display="block";let html=d.keys.map(k=>`<div style="background:rgba(76,175,80,0.2);padding:8px;margin:5px 0;border-radius:3px">${k}</div>`).join("");document.getElementById("keyOutput").innerHTML=html,document.getElementById("keyOutput").style.display="block",loadStats()}else document.getElementById("message").textContent="✗ "+d.message,document.getElementById("message").className="message error",document.getElementById("message").style.display="block"}catch(e){document.getElementById("message").textContent="✗ Error",document.getElementById("message").className="message error",document.getElementById("message").style.display="block"}}async function loadStats(){try{const r=await fetch("/api/stats"),d=await r.json();document.getElementById("totalKeys").textContent=d.total,document.getElementById("usedKeys").textContent=d.used,document.getElementById("availableKeys").textContent=d.available,document.getElementById("bannedKeys").textContent=d.banned}catch(e){console.error(e)}}function copyAllKeys(){const output=document.getElementById("keyOutput").innerText;navigator.clipboard.writeText(output),alert("Copied!")}loadStats();</script></body></html>'''
 
 @app.route('/api/generate-key', methods=['POST'])
 def api_generate_key():
@@ -102,31 +104,6 @@ def api_validate_key():
         return jsonify({'success': False, 'message': 'Expired'}), 403
 
     return jsonify({'success': True}), 200
-
-@app.route('/api/redeem-key', methods=['POST'])
-def api_redeem_key():
-    data = request.get_json()
-    key_str = data.get('key')
-    username = data.get('username')
-    hwid = data.get('hwid')
-
-    key = LicenseKey.query.filter_by(key=key_str).first()
-
-    if not key:
-        return jsonify({'success': False, 'message': 'Not found'}), 404
-    if key.is_banned:
-        return jsonify({'success': False, 'message': 'Banned'}), 403
-    if key.current_uses >= key.max_uses:
-        return jsonify({'success': False, 'message': 'Limit'}), 403
-    if key.expires_date < datetime.utcnow():
-        return jsonify({'success': False, 'message': 'Expired'}), 403
-
-    key.is_used = True
-    key.used_by = username or f"User_{key_str[:8]}"
-    key.current_uses += 1
-    db.session.commit()
-
-    return jsonify({'success': True, 'token': secrets.token_urlsafe(32)}), 200
 
 if __name__ == '__main__':
     with app.app_context():
