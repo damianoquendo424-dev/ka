@@ -22,16 +22,15 @@ class Admin(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
 
-class LicenseKey(db.Model):
+class AuthKey(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     key = db.Column(db.String(25), unique=True, nullable=False)
-    name = db.Column(db.String(255), default="Unnamed")
     hwid = db.Column(db.String(255))
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     expires_date = db.Column(db.DateTime)
     is_banned = db.Column(db.Boolean, default=False)
 
-def generate_license_key():
+def generate_key():
     parts = []
     for _ in range(4):
         part = ''.join(secrets.choice('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for _ in range(5))
@@ -40,34 +39,53 @@ def generate_license_key():
 
 @app.route('/')
 def index():
-    return redirect(url_for('validate'))
+    return redirect(url_for('login'))
 
-@app.route('/validate', methods=['GET', 'POST'])
-def validate():
+@app.route('/login', methods=['GET', 'POST'])
+def login():
     if request.method == 'POST':
         data = request.get_json()
         key_str = data.get('key')
         hwid = data.get('hwid')
 
-        key = LicenseKey.query.filter_by(key=key_str).first()
+        auth_key = AuthKey.query.filter_by(key=key_str).first()
 
-        if not key:
+        if not auth_key:
             return jsonify({'success': False, 'message': 'Key not found'}), 404
-        if key.is_banned:
-            return jsonify({'success': False, 'message': 'Key is banned'}), 403
-        if key.expires_date < datetime.utcnow():
+        if auth_key.is_banned:
+            return jsonify({'success': False, 'message': 'Key banned'}), 403
+        if auth_key.expires_date < datetime.utcnow():
             return jsonify({'success': False, 'message': 'Key expired'}), 403
-        if key.hwid and key.hwid != hwid:
-            return jsonify({'success': False, 'message': 'Key is locked to different hardware'}), 403
+        if auth_key.hwid and auth_key.hwid != hwid:
+            return jsonify({'success': False, 'message': 'HWID mismatch'}), 403
 
-        # First use - lock to this HWID
-        if not key.hwid:
-            key.hwid = hwid
+        if not auth_key.hwid:
+            auth_key.hwid = hwid
             db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Key valid!', 'expires': key.expires_date.strftime('%Y-%m-%d')}), 200
+        session['key'] = key_str
+        return jsonify({'success': True}), 200
 
-    return '''<!DOCTYPE html><html><head><title>License Validator</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);font-family:Segoe UI;display:flex;justify-content:center;align-items:center;min-height:100vh;color:#fff}.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:40px;width:400px}.logo{text-align:center;margin-bottom:30px}.logo h1{font-size:2.5em;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}.form-group{margin-bottom:20px}label{display:block;margin-bottom:8px;color:#bbb}input{width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#fff;margin-bottom:10px}.btn{width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:5px;color:#fff;cursor:pointer;font-weight:600;margin-top:10px}.btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(102,126,234,0.4)}.message{padding:12px;border-radius:5px;margin-bottom:20px;display:none}.message.error{background:rgba(244,67,54,0.2);color:#f44336}.message.success{background:rgba(76,175,80,0.2);color:#4caf50}</style></head><body><div class="card"><div class="logo"><h1>🔑 License Validator</h1></div><div class="message" id="msg"></div><form id="form"><div class="form-group"><label>License Key</label><input type="text" id="k" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required></div><button class="btn" type="submit">Validate</button></form></div><script>document.getElementById("form").addEventListener("submit",async e=>{e.preventDefault();const hwid="SAMPLE-HWID-12345";const r=await fetch("/validate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:document.getElementById("k").value,hwid:hwid})}),d=await r.json();d.success?(document.getElementById("msg").textContent="✓ "+d.message+" Expires: "+d.expires,document.getElementById("msg").className="message success",document.getElementById("msg").style.display="block"):(document.getElementById("msg").textContent="✗ "+d.message,document.getElementById("msg").className="message error",document.getElementById("msg").style.display="block")});</script></body></html>'''
+    return '''<!DOCTYPE html><html><head><title>KeyAuth</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);font-family:Segoe UI;display:flex;justify-content:center;align-items:center;min-height:100vh;color:#fff}.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:40px;width:400px}.logo{text-align:center;margin-bottom:30px}.logo h1{font-size:2.5em;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}.form-group{margin-bottom:20px}label{display:block;margin-bottom:8px;color:#bbb}input{width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#fff;margin-bottom:10px}.btn{width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:5px;color:#fff;cursor:pointer;font-weight:600;margin-top:10px}.btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(102,126,234,0.4)}.message{padding:12px;border-radius:5px;margin-bottom:20px;display:none}.message.error{background:rgba(244,67,54,0.2);color:#f44336}.message.success{background:rgba(76,175,80,0.2);color:#4caf50}</style></head><body><div class="card"><div class="logo"><h1>🔑 KeyAuth</h1></div><div class="message" id="msg"></div><form id="form"><div class="form-group"><label>Key</label><input type="text" id="k" placeholder="XXXXX-XXXXX-XXXXX-XXXXX" required></div><button class="btn" type="submit">Login</button></form></div><script>document.getElementById("form").addEventListener("submit",async e=>{e.preventDefault();const hwid="HWID-"+Math.random().toString(36).substring(7);const r=await fetch("/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:document.getElementById("k").value,hwid:hwid})}),d=await r.json();d.success?(document.getElementById("msg").textContent="✓ Logged in!",document.getElementById("msg").className="message success",document.getElementById("msg").style.display="block",setTimeout(()=>window.location.href="/dashboard",1500)):(document.getElementById("msg").textContent="✗ "+d.message,document.getElementById("msg").className="message error",document.getElementById("msg").style.display="block")});</script></body></html>'''
+
+@app.route('/dashboard')
+def dashboard():
+    if 'key' not in session:
+        return redirect(url_for('login'))
+
+    key = session.get('key')
+    auth_key = AuthKey.query.filter_by(key=key).first()
+
+    if not auth_key:
+        session.clear()
+        return redirect(url_for('login'))
+
+    return f'''<!DOCTYPE html><html><head><title>Dashboard</title><style>*{{margin:0;padding:0;box-sizing:border-box}}body{{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);font-family:Segoe UI;color:#fff;min-height:100vh;padding:20px}}.navbar{{background:rgba(0,0,0,0.3);padding:20px;border-radius:10px;margin-bottom:30px;display:flex;justify-content:space-between;align-items:center}}.navbar h1{{font-size:1.8em}}.container{{max-width:1200px;margin:0 auto}}.section{{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:30px;margin-bottom:30px}}.section h2{{margin-bottom:20px}}.message{{padding:15px;border-radius:5px;margin-bottom:20px}}.message.success{{background:rgba(76,175,80,0.2);color:#4caf50}}.btn{{padding:10px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:5px;color:#fff;cursor:pointer}}.btn:hover{{transform:translateY(-2px)}}</style></head><body><div class="navbar"><h1>🔑 Welcome!</h1><a onclick="window.location.href=\\'/logout\\'" style="color:#667eea;cursor:pointer">Logout</a></div><div class="container"><div class="section"><h2>✓ You're logged in!</h2><div class="message success">Key: {key}</div><p>HWID: {auth_key.hwid}</p><p>Expires: {auth_key.expires_date.strftime('%Y-%m-%d')}</p></div></div></body></html>'''
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -79,32 +97,26 @@ def admin():
         if admin and check_password_hash(admin.password, password):
             session['admin_id'] = admin.id
             return jsonify({'success': True}), 200
-        return jsonify({'success': False, 'message': 'Invalid credentials'}), 401
+        return jsonify({'success': False, 'message': 'Invalid'}), 401
 
     if 'admin_id' not in session:
         return '''<!DOCTYPE html><html><head><title>Admin</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);font-family:Segoe UI;display:flex;justify-content:center;align-items:center;min-height:100vh;color:#fff}.card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:40px;width:400px}.logo{text-align:center;margin-bottom:30px}.logo h1{font-size:2.5em;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent}.form-group{margin-bottom:20px}label{display:block;margin-bottom:8px;color:#bbb}input{width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#fff;margin-bottom:10px}.btn{width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:5px;color:#fff;cursor:pointer;font-weight:600;margin-top:10px}.btn:hover{transform:translateY(-2px);box-shadow:0 5px 20px rgba(102,126,234,0.4)}.message{padding:12px;border-radius:5px;margin-bottom:20px;display:none}.message.error{background:rgba(244,67,54,0.2);color:#f44336}</style></head><body><div class="card"><div class="logo"><h1>🔑 Admin</h1></div><div class="message" id="msg"></div><form id="form"><div class="form-group"><label>Username</label><input type="text" id="u" required></div><div class="form-group"><label>Password</label><input type="password" id="p" required></div><button class="btn" type="submit">Login</button></form></div><script>document.getElementById("form").addEventListener("submit",async e=>{e.preventDefault();const r=await fetch("/admin",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:document.getElementById("u").value,password:document.getElementById("p").value})}),d=await r.json();d.success?window.location.href="/admin/panel":(document.getElementById("msg").textContent="✗ "+d.message,document.getElementById("msg").className="message error",document.getElementById("msg").style.display="block")});</script></body></html>'''
 
-    return '''<!DOCTYPE html><html><head><title>Admin Panel</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);font-family:Segoe UI;color:#fff;min-height:100vh;padding:20px}.navbar{background:rgba(0,0,0,0.3);padding:20px;border-radius:10px;margin-bottom:30px;display:flex;justify-content:space-between}.container{max-width:1200px;margin:0 auto}.section{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:30px;margin-bottom:30px}.section h2{margin-bottom:20px}.form-group{margin-bottom:15px}label{display:block;margin-bottom:5px;color:#aaa}input{width:100%;padding:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#fff;margin-bottom:10px}.btn{padding:10px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:5px;color:#fff;cursor:pointer}.btn:hover{transform:translateY(-2px)}.btn-danger{background:linear-gradient(135deg,#f44336 0%,#d32f2f 100%)}.table{width:100%;border-collapse:collapse;margin-top:15px}.table th,.table td{padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);font-size:0.9em}.table th{background:rgba(255,255,255,0.05)}</style></head><body><div class="navbar"><h1>🔑 Admin Panel</h1><a onclick="window.location.href=\\'/logout\\'" style="color:#667eea;cursor:pointer">Logout</a></div><div class="container"><div class="section"><h2>Generate Keys</h2><div class="form-group"><label>Key Name</label><input type="text" id="n" placeholder="Customer A"></div><div class="form-group"><label>Days Valid</label><input type="number" id="d" value="30"></div><div class="form-group"><label>Quantity</label><input type="number" id="q" value="1"></div><button class="btn" onclick="gen()">Generate</button><div id="o"></div></div><div class="section"><h2>All Keys</h2><button class="btn" onclick="load()">Load Keys</button><table class="table" id="t"><tr><th>Name</th><th>Key</th><th>HWID</th><th>Expires</th><th>Status</th><th>Action</th></tr></table></div></div><script>async function gen(){const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:document.getElementById("n").value||"Unnamed",days:document.getElementById("d").value,qty:document.getElementById("q").value})}),d=await r.json();if(d.success){document.getElementById("o").innerHTML=d.keys.map(k=>`<div style="background:rgba(76,175,80,0.2);padding:8px;margin:5px 0;border-radius:3px"><code>${k}</code></div>`).join(""),load()}else alert("Error")}async function load(){const r=await fetch("/api/keys"),d=await r.json();let h='<tr><th>Name</th><th>Key</th><th>HWID</th><th>Expires</th><th>Status</th><th>Action</th></tr>';d.keys.forEach(k=>{const s=k.banned?"BANNED":"ACTIVE";h+=`<tr><td>${k.name}</td><td style="font-size:0.8em;font-family:monospace">${k.key}</td><td>${k.hwid||"-"}</td><td>${k.expires}</td><td>${s}</td><td><button class="btn btn-danger" onclick="ban(\\'${k.key}\\')">Ban</button></td></tr>`}),document.getElementById("t").innerHTML=h}async function ban(key){if(confirm("Ban this key?")){const r=await fetch("/api/ban",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:key})}),d=await r.json();d.success?load():alert("Error")}}load();</script></body></html>'''
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('admin'))
+    return '''<!DOCTYPE html><html><head><title>Admin Panel</title><style>*{margin:0;padding:0;box-sizing:border-box}body{background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);font-family:Segoe UI;color:#fff;min-height:100vh;padding:20px}.navbar{background:rgba(0,0,0,0.3);padding:20px;border-radius:10px;margin-bottom:30px;display:flex;justify-content:space-between}.container{max-width:1200px;margin:0 auto}.section{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:30px;margin-bottom:30px}.section h2{margin-bottom:20px}.form-group{margin-bottom:15px}label{display:block;margin-bottom:5px;color:#aaa}input{width:100%;padding:10px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:5px;color:#fff;margin-bottom:10px}.btn{padding:10px 20px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;border-radius:5px;color:#fff;cursor:pointer}.btn:hover{transform:translateY(-2px)}.btn-danger{background:linear-gradient(135deg,#f44336 0%,#d32f2f 100%)}.table{width:100%;border-collapse:collapse;margin-top:15px}.table th,.table td{padding:10px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.1);font-size:0.9em}.table th{background:rgba(255,255,255,0.05)}</style></head><body><div class="navbar"><h1>🔑 Admin Panel</h1><a onclick="window.location.href=\\'/logout\\'" style="color:#667eea;cursor:pointer">Logout</a></div><div class="container"><div class="section"><h2>Generate Keys</h2><div class="form-group"><label>Days Valid</label><input type="number" id="d" value="30"></div><div class="form-group"><label>Quantity</label><input type="number" id="q" value="1"></div><button class="btn" onclick="gen()">Generate</button><div id="o"></div></div><div class="section"><h2>All Keys</h2><button class="btn" onclick="load()">Refresh</button><table class="table" id="t"><tr><th>Key</th><th>HWID</th><th>Expires</th><th>Status</th><th>Action</th></tr></table></div></div><script>async function gen(){const r=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({days:document.getElementById("d").value,qty:document.getElementById("q").value})}),d=await r.json();if(d.success){document.getElementById("o").innerHTML="<h3>Keys Generated:</h3>"+d.keys.map(k=>`<div style="background:rgba(76,175,80,0.2);padding:8px;margin:5px 0;border-radius:3px;font-family:monospace">${k}</div>`).join(""),load()}else alert("Error")}async function load(){const r=await fetch("/api/keys"),d=await r.json();let h='<tr><th>Key</th><th>HWID</th><th>Expires</th><th>Status</th><th>Action</th></tr>';d.keys.forEach(k=>{const s=k.banned?"BANNED":"ACTIVE";h+=`<tr><td style="font-family:monospace;font-size:0.85em">${k.key}</td><td>${k.hwid||"-"}</td><td>${k.expires}</td><td>${s}</td><td><button class="btn btn-danger" onclick="ban(\\'${k.key}\\')">Ban</button></td></tr>`}),document.getElementById("t").innerHTML=h}async function ban(key){if(confirm("Ban this key?")){const r=await fetch("/api/ban",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:key})}),d=await r.json();d.success?load():alert("Error")}}load();</script></body></html>'''
 
 @app.route('/api/generate', methods=['POST'])
 def api_generate():
     if 'admin_id' not in session:
         return jsonify({'success': False}), 401
     data = request.get_json()
-    name = data.get('name', 'Unnamed')
     days = int(data.get('days', 30))
     qty = int(data.get('qty', 1))
 
     keys = []
     for _ in range(min(qty, 100)):
-        k = generate_license_key()
+        k = generate_key()
         exp = datetime.utcnow() + timedelta(days=days)
-        key_obj = LicenseKey(key=k, name=name, expires_date=exp)
+        key_obj = AuthKey(key=k, expires_date=exp)
         db.session.add(key_obj)
         keys.append(k)
 
@@ -115,15 +127,15 @@ def api_generate():
 def api_keys():
     if 'admin_id' not in session:
         return jsonify({'success': False}), 401
-    keys = LicenseKey.query.order_by(LicenseKey.created_date.desc()).all()
-    return jsonify({'keys': [{'name': k.name, 'key': k.key, 'hwid': k.hwid, 'expires': k.expires_date.strftime('%Y-%m-%d'), 'banned': k.is_banned} for k in keys]})
+    keys = AuthKey.query.order_by(AuthKey.created_date.desc()).all()
+    return jsonify({'keys': [{'key': k.key, 'hwid': k.hwid, 'expires': k.expires_date.strftime('%Y-%m-%d'), 'banned': k.is_banned} for k in keys]})
 
 @app.route('/api/ban', methods=['POST'])
 def api_ban():
     if 'admin_id' not in session:
         return jsonify({'success': False}), 401
     data = request.get_json()
-    key = LicenseKey.query.filter_by(key=data.get('key')).first()
+    key = AuthKey.query.filter_by(key=data.get('key')).first()
     if not key:
         return jsonify({'success': False}), 404
     key.is_banned = True
