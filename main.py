@@ -7,8 +7,8 @@ import secrets
 app = Flask(__name__)
 
 # ===== CHANGE THESE =====
-ADMIN_USERNAME = 'deu'
-ADMIN_PASSWORD = 'deu'
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD = 'admin'
 # =======================
 
 app.config['SECRET_KEY'] = 'secret-key-change-me'
