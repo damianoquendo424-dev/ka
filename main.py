@@ -116,6 +116,10 @@ def api_validate_key():
 
 if __name__ == '__main__':
     with app.app_context():
+        try:
+            db.drop_all()
+        except:
+            pass
         db.create_all()
         if not Admin.query.filter_by(username='deu').first():
             admin = Admin(username='deu', password=generate_password_hash('deu'))
