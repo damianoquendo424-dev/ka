@@ -6,10 +6,10 @@ import secrets
 
 app = Flask(__name__)
 
-# ===== CUSTOMIZE HERE =====
-ADMIN_USERNAME = 'deu'      # CHANGE THIS TO YOUR USERNAME
-ADMIN_PASSWORD = 'deu'      # CHANGE THIS TO YOUR PASSWORD
-# ==========================
+# ===== CHANGE THESE =====
+ADMIN_USERNAME = 'deu'
+ADMIN_PASSWORD = 'deu'
+# =======================
 
 app.config['SECRET_KEY'] = 'deu-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///auth.db'
