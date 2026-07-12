@@ -6,10 +6,8 @@ import secrets
 
 app = Flask(__name__)
 
-# ===== CHANGE THESE =====
 ADMIN_USERNAME = 'deu'
 ADMIN_PASSWORD = 'deu'
-# =======================
 
 app.config['SECRET_KEY'] = 'secret-key-change-me'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///auth.db'
@@ -41,7 +39,7 @@ def generate_key():
 
 @app.route('/')
 def index():
-    return redirect(url_for('login'))
+    return redirect(url_for('admin'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
